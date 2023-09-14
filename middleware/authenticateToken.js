@@ -1,8 +1,9 @@
-const jwt = require("jsonwebtoken");
+const JWT = require("jsonwebtoken");
 require("dotenv").config();
 
 const authToken = async (req, res, next) => {
   const token = req.header("x-auth-token");
+  // return res.json({token});
   if (!token) {
     res.status(401).json({
       errors: [
@@ -13,7 +14,8 @@ const authToken = async (req, res, next) => {
     });
   }
   try {
-    const user = await jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    const user = await JWT.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    // return res.json({user});
     req.user = user.email;
     next();
   } catch (error) {

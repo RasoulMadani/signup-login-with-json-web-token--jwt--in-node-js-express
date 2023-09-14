@@ -1,5 +1,5 @@
 const users = [
-  { email: "jogn@gmail.com", password: "random" },
+  { email: "jame@gmail.com", password: "random" },
   {
     email: "jack@gmail.com",
     password: "JackPassword",

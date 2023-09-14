@@ -3,6 +3,7 @@ const { check, validationResult } = require("express-validator");
 const bcrypt = require("bcrypt");
 const JWT = require("jsonwebtoken");
 const { users } = require("../database");
+let refreshTokens = [];
 
 require("dotenv").config();
 
@@ -45,7 +46,7 @@ router.post(
       { email },
       process.env.ACCESS_TOKEN_SECRET,
       {
-        expireIn: "10s",
+        expiresIn: "10s",
       }
     );
     res.json({
@@ -73,7 +74,7 @@ router.post("/login", async (req, res) => {
   let isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     return res.status(401).json({
-      errors: [ 
+      errors: [
         {
           msg: "Email or password is invalid",
         },
@@ -81,14 +82,72 @@ router.post("/login", async (req, res) => {
     });
   }
   const accessToken = await JWT.sign(
-    {email},
+    { email },
     process.env.ACCESS_TOKEN_SECRET,
     {
-        expireIn: "10s"
+      expiresIn: "100s",
     }
   );
+
+  const refreshToken = await JWT.sign(
+    { email },
+    process.env.REFRESH_TOKEN_SECRET,
+    {
+      expiresIn: "1m",
+    }
+  );
+  refreshTokens.push(refreshToken);
   res.json({
-    accessToken
-  })  
+    accessToken,
+    refreshToken,
+  });
+});
+
+router.post("/token", async (req, res) => {
+  const refreshToken = req.header("x-auth-token");
+  if (!refreshToken) {
+    res.status(401).json({
+      errors: [
+        {
+          msg: "Token not found",
+        },
+      ],
+    });
+  }
+  if (!refreshTokens.includes(refreshToken)) {
+    res.status(403).json({
+      errors: [
+        {
+          mgs: "Invalid refresh token",
+        },
+      ],
+    });
+  }
+  try {
+    const user = await JWT.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+    const { email } = user;
+    const accessToken = await JWT.sign(
+      { email },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: "100s" }
+    );
+    res.json({ accessToken });
+  } catch (error) {
+    res.status(403).json({
+      errors: [
+        {
+          msg: "Invalid token",
+        },
+      ],
+    });
+  }
+});
+router.delete("/logout", (req, res) => {
+  const refreshToken = req.header("x-auth-token");
+  refreshTokens = refreshTokens.filter((token) => token !== refreshToken);
+  res.sendStatus(204);
 });
 module.exports = router;
